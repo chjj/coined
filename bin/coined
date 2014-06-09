@@ -1,0 +1,239 @@
+#!/usr/bin/env node
+
+/**
+ * coined - a messy cli tool for testing bcoin and coined.js
+ * Copyright (c) 2014, Christopher Jeffrey. (MIT Licensed)
+ * https://github.com/chjj/coined
+ */
+
+/**
+ * Load
+ */
+
+var coined = require('../')
+  , bcoin = coined.bcoin
+  , bn = coined.bn
+  , utils = coined.utils;
+
+/**
+ * Arguments
+ */
+
+var argv = parseArg(process.argv.slice(2));
+
+/**
+ * Main
+ */
+
+function main(argv, callback) {
+  var download = !argv.cmd[0] || argv.cmd[0] === 'download';
+
+  var coin = coined({
+    db: {
+      type: argv.dbType,
+      path: argv.dbPath,
+      clear: argv.dbClear
+    },
+    priv: argv.key ? coined.fromKeyBase58(argv.key, true) : null,
+    startHeight: 0,
+    relay: download ? false : argv.relay,
+    noPreload: argv.noPreload || download,
+    verbose: argv.verbose,
+    size: download ? 8 : null
+  });
+
+  coin.on('log', function() {
+    utils.print.apply(utils, arguments);
+  });
+
+  coin.on('balance', function() {
+    utils.print('Wallet balance updated: %s', utils.toBTC(coin.account.balance()));
+  });
+
+  coin.on('account', function(addr) {
+    utils.print('Your account is %s', addr);
+  });
+
+  coin.once('load', function() {
+    utils.print('Loaded.');
+  });
+
+  coin.emit('log', 'Welcome to coined!');
+  coin.emit('log', 'Loading DB: %s', coin.options.db.path);
+
+  coin.on('error', function(err) {
+    ;
+  });
+
+  /**
+   * Start
+   */
+
+  coin.startSend = function(callback) {
+    setInterval(function() {
+      coin.emit('log', 'BTC Balance: %s', utils.toBTC(coin.account.balance()));
+      if (coin.account.balance() >= coin.dust && !coin._sentTX) {
+        var to = argv.cmd[1];
+        if (!to) {
+          return callback(new Error('No sendto adress.'));
+        }
+
+        var amt;
+        if (/\./.test(argv.cmd[2])) {
+          amt = Math.max(utils.fromBTC(argv.cmd[2]), coin.dust);
+        } else {
+          amt = Math.max(+argv.cmd[2] || 0, coin.dust);
+        }
+
+        coin._sentTX = true;
+        coin.emit('log', 'Sending %s BTC...', utils.toBTC(new bn(amt)));
+
+        return coin.sendTo(to, amt, function(err, success, hash) {
+          if (err) return callback(err);
+          coin.emit('log', 'TX Hash: %s', hash);
+          return callback();
+        });
+      }
+    }, 5 * 1000);
+  };
+
+  coin.start = function(callback) {
+    var cmd = argv.cmd[0];
+
+    if (!cmd || cmd === 'download') {
+      coin.downloadBlockchain();
+      return;
+    }
+
+    if (cmd === 'block') {
+      if (!argv.cmd[1]) return callback();
+      var hash = utils.revHex(argv.cmd[1]);
+      utils.print('Finding block: %s', hash);
+      return coin.findBlock(hash, function(err, block) {
+        if (err) return callback(err);
+        utils.printl(block, 20);
+        return callback();
+      });
+    }
+
+    if (cmd === 'send') {
+      return coin.startSend(callback);
+    }
+
+    if (cmd === 'balance') {
+      if (coin.pool.chain.isFull()) {
+        coin.emit('log', 'BTC Balance: %s', utils.toBTC(coin.account.balance()));
+        return callback();
+      }
+      return coin.on('full', function() {
+        coin.emit('log', 'BTC Balance: %s', utils.toBTC(coin.account.balance()));
+        return callback();
+      });
+    }
+  };
+
+  return coin.start(callback);
+}
+
+/**
+ * Arguments
+ */
+
+function parseArg(argv) {
+  var options = {}
+    , cmd = options.cmd = []
+    , arg;
+
+  function getarg() {
+    var arg = argv.shift();
+
+    if (arg.indexOf('--') === 0) {
+      // e.g. --opt
+      arg = arg.split('=');
+      if (arg.length > 1) {
+        // e.g. --opt=val
+        argv.unshift(arg.slice(1).join('='));
+      }
+      arg = arg[0];
+    } else if (arg[0] === '-') {
+      if (arg.length > 2) {
+        // e.g. -abc
+        argv = arg.substring(1).split('').map(function(ch) {
+          return '-' + ch;
+        }).concat(argv);
+        arg = argv.shift();
+      } else {
+        // e.g. -a
+      }
+    } else {
+      // e.g. foo
+    }
+
+    return arg;
+  }
+
+  while (argv.length) {
+    arg = getarg();
+    switch (arg) {
+      case '-d':
+      case '--db':
+      case '--db-type':
+        options.dbType = argv.shift();
+        break;
+      case '--db-file':
+      case '--db-path':
+        options.dbPath = argv.shift();
+        break;
+      case '--db-clear':
+        options.dbClear = true;
+        break;
+      case '-k':
+      case '-p':
+      case '--key':
+      case '--priv':
+        options.key = argv.shift();
+        break;
+      case '-s':
+      case '--satoshi':
+      case '--no-relay':
+        options.relay = false;
+        break;
+      case '-r':
+      case '--relay':
+        options.relay = true;
+        break;
+      case '-c':
+      case '--clear':
+      case '--no-preload':
+        options.noPreload = true;
+        break;
+      case '-v':
+      case '--verbose':
+        options.verbose = true;
+        break;
+      case '-h':
+      case '--help':
+        process.exit(1);
+        break;
+      default:
+        cmd.push(arg);
+        break;
+    }
+  }
+
+  return options;
+}
+
+/**
+ * Execute
+ */
+
+if (!module.parent) {
+  process.title = 'coined';
+  main(argv, function(err) {
+    if (err) throw err;
+    return process.exit(0);
+  });
+} else {
+  module.exports = main;
+}

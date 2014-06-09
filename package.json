@@ -1,0 +1,23 @@
+{
+  "name": "coined",
+  "description": "Highlevel wrapper around BCoin",
+  "author": "Christopher Jeffrey",
+  "version": "0.0.0",
+  "main": "./lib/coined.js",
+  "bin": "./bin/coined",
+  "man": "./man/coined.1",
+  "preferGlobal": false,
+  "repository": "git://github.com/chjj/coined.git",
+  "homepage": "https://github.com/chjj/coined",
+  "bugs": { "url": "http://github.com/chjj/coined/issues" },
+  "license": "MIT",
+  "tags": ["bcoin", "bitcoin", "coined"],
+  "dependencies": {
+    "bcoin": ">=0.14.1",
+    "tiny": ">=0.0.10"
+  },
+  "scripts": {
+    "test": "node test",
+    "bench": "node test --bench"
+  }
+}
