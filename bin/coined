@@ -26,7 +26,7 @@ var argv = parseArg(process.argv.slice(2));
  */
 
 function main(argv, callback) {
-  var download = !argv.cmd[0] || argv.cmd[0] === 'download';
+  var download = (!argv.cmd[0] || argv.cmd[0] === 'download') && !argv.relay;
 
   var coin = coined({
     db: {
@@ -64,6 +64,21 @@ function main(argv, callback) {
   coin.on('error', function(err) {
     ;
   });
+
+  if (argv.debug) {
+    var parse = bcoin.protocol.parser.prototype.parse;
+    bcoin.protocol.parser.prototype.parse = function(chunk) {
+      if (this.packet) {
+        console.log('PARSE %s', this.packet.cmd);
+      }
+      return parse.apply(this, arguments);
+    };
+    var packet = bcoin.protocol.framer.prototype.packet;
+    bcoin.protocol.framer.prototype.packet = function(cmd, payload) {
+      console.log('FRAME %s', cmd);
+      return packet.apply(this, arguments);
+    };
+  }
 
   /**
    * Start
@@ -210,6 +225,9 @@ function parseArg(argv) {
       case '-v':
       case '--verbose':
         options.verbose = true;
+        break;
+      case '--debug':
+        options.debug = true;
         break;
       case '-h':
       case '--help':
