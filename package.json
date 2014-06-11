@@ -2,7 +2,7 @@
   "name": "coined",
   "description": "Highlevel wrapper around BCoin",
   "author": "Christopher Jeffrey",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "./lib/coined.js",
   "bin": "./bin/coined",
   "man": "./man/coined.1",
