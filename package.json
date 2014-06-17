@@ -13,7 +13,7 @@
   "license": "MIT",
   "tags": ["bcoin", "bitcoin", "coined"],
   "dependencies": {
-    "bcoin": ">=0.14.1",
+    "bcoin": ">=0.14.2",
     "tiny": ">=0.0.10"
   },
   "scripts": {
