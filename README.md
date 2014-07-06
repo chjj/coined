@@ -106,7 +106,7 @@ coin.accounts.forEach(function(account) {
 }
 ```
 
-## Dislaimer and Note
+## Disclaimer and Note
 
 It is *your own* responsibility to backup and keep your wallet/privkeys safe.
 The coined developer(s) will not be responsible if your coins are lost,
